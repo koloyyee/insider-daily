@@ -2,11 +2,11 @@
 
 ## Stage 1
 
-- [ ] Dockerfile
-- [ ] docker-compose
+- [x] Dockerfile
+- [x] docker-compose
 - [ ] Use edgartool to get fillings
 - [ ] Implement FastScheduler
-- [ ] Set up FastAPI server
+- [x] Set up FastAPI server
 - [ ] Set up Datastar categorized table by filing types
 - [ ] Deploy to dockerhub
 - [ ] Deploy to Hetzner
