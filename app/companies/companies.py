@@ -13,31 +13,23 @@ def is_old_file(file_path: Path, days: int):
 
 
 def get_companies(force_update: bool = False):
-	sec_companies_json_url = "https://www.sec.gov/files/company_tickers.json"
-
-	raw_path = Path("app/companies/raw_companies.json")
 	clean_path = Path("app/companies/companies.json")
 
-	if is_old_file(raw_path, 7) or force_update:
-		latest_companies_json = httpx.get(sec_companies_json_url).json()
-		with open(raw_path, "w") as f:
-			json.dump(latest_companies_json, f, indent=4)
-
-	companies = [] 
-
-	if os.path.exists(clean_path) and os.path.getsize(clean_path) == 0:
-		with open (raw_path, "r") as f:
-			data = json.load(f)
-			companies = list(data.values())
-			print(companies)
+	if not os.path.exists(clean_path) or is_old_file(clean_path, 90) or force_update:
+		print("Pulling from company tickers from SEC...")
+		sec_companies_json_url = "https://www.sec.gov/files/company_tickers.json"
+		latest_companies_json = httpx.get(sec_companies_json_url, headers={
+    		"User-Agent": "Loyyee Ko koloyyee@gmail.com",
+		}).json()
 
 		with open(clean_path, "w") as f:
+			companies = list(latest_companies_json.values())
 			json.dump(companies, f, indent=4)
+			return companies
 	else:
 		with open(clean_path, "r") as f:
 			companies = json.load(f)
-	return companies
-
+			return companies
 
 def generate_ticker_enum():
 	ticker_enum = Path("app/ticker_enum.py")
@@ -46,13 +38,18 @@ def generate_ticker_enum():
 		buffer = io.StringIO()
 		for c in companies:
 			if "-" in c['ticker']:
-				buffer.write(f" {c['ticker'].replace("-", "_")} = {c['cik_str']}\n\t")
+				buffer.write(f"{c['ticker'].replace("-", "_")} = {c['cik_str']}\n\t")
 			else:
-				buffer.write(f" {c['ticker']} = {c['cik_str']}\n\t")
+				buffer.write(f"{c['ticker']} = {c['cik_str']}\n\t")
 		body = f"""
-	from enum import Enum
+from enum import Enum
 
-	class Ticker(Enum):
-		{buffer.getvalue()}
-		"""
+class Ticker(Enum):
+	{buffer.getvalue()}
+
+	def __str__(self) -> str:
+		return self.name.replace("_", "-")
+	"""
 		f.write(body)
+
+generate_ticker_enum()
