@@ -1,46 +1,49 @@
 # syntax=docker/dockerfile:1
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS build
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 
 # Set environment variables
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    UV_NO_DEV=1 \
+    UV_PYTHON_DOWNLOADS=0
 
 WORKDIR /app
 
 # Install dependencies using uv caching
 # Docker BuildKit with caching, binding to the dependencies list, and use specific version of uv
-RUN --mount=type=cache,target=/root/.cache/uv \ 
+WORKDIR /app
+RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project --no-dev
+    uv sync --locked --no-install-project
+COPY . /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked
 
 # Final stage
-FROM python:3.12-slim-bookworm
+FROM python:3.13-slim-bookworm
+
+# Setup a non-root user
+RUN groupadd --system --gid 999 appuser \
+ && useradd --system --gid 999 --uid 999 --create-home appuser
 
 WORKDIR /app
 
-# Copy the installed dependencies from the build stage
-COPY --from=build /app/.venv /app/.venv
+# Copy the application from the builder
+COPY --from=builder --chown=appuser:appuser /app /app
+
+# Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Create a non-privileged user
-ARG UID=10001
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    appuser
+# Keeps Python from buffering stdout and stderr to avoid situations where
+# the application crashes without emitting any logs due to buffering.
+ENV PYTHONUNBUFFERED=1
 
-# Copy source code
-COPY . .
-RUN chown -R appuser:appuser /app
-
+# Use the non-root user to run our application
 USER appuser
+
+# Use `/app` as the working directory
+WORKDIR /app
 
 # Expose FastAPI port
 EXPOSE 8000
