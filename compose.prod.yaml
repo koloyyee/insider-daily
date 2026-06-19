@@ -25,7 +25,7 @@ services:
         condition: service_healthy
     environment:
       - DB_USER=appuser
-      - DB_NAME=sec_daily
+      - DB_NAME=insider-daily
       - DB_HOST=db
 
   db:
@@ -37,12 +37,12 @@ services:
       - db-data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=appuser
-      - POSTGRES_DB=sec_daily
+      - POSTGRES_DB=insider-daily
       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
     expose:
       - 5432
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "appuser", "-d", "sec_daily"]
+      test: ["CMD", "pg_isready", "-U", "appuser", "-d", "insider-daily"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -10,3 +10,5 @@ wheels/
 .venv
 
 */password.txt
+
+node_modules/

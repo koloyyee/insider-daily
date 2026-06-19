@@ -1,7 +1,7 @@
 [project]
-name = "sec-daily"
+name = "insider-daily"
 version = "0.1.0"
-description = "Add your description here"
+description = "Track insider trading"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -11,7 +11,6 @@ dependencies = [
     "fastscheduler[all]>=0.2.1",
     "uvicorn[standard]>=0.42.0",
     "gunicorn>=23.0.0",
-    "sqlmodel>=0.0.22",
     "psycopg[binary]>=3.2.0",
     "alembic>=1.18.4",
     "asyncpg>=0.31.0",
@@ -19,4 +18,5 @@ dependencies = [
     "pytest>=9.0.2",
     "feedparser>=6.0.12",
     "apscheduler>=3.11.2",
+    "sqlalchemy[asyncio]>=2.0.48",
 ]

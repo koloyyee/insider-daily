@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 class Base(DeclarativeBase):
 	pass
 
-def get_db_url():
+def _get_db_url():
 	secret_path = Path("/run/secrets/db-password")
 	if secret_path.exists():
 		password = secret_path.read_text().strip()
@@ -23,7 +23,7 @@ def get_db_url():
 	host = os.getenv("DB_HOST", default="localhost")
 	return f"postgresql+asyncpg://appuser:{password}@{host}:5432/insider-daily"
 
-engine = create_async_engine(get_db_url(), echo=True)
+engine = create_async_engine(_get_db_url(), echo=True)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=True)
 async def get_async_session() -> AsyncGenerator[AsyncSession]:
 	async with AsyncSessionLocal() as session:

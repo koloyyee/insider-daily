@@ -10,13 +10,12 @@ c = Company("RDDT")
 
 f4s = c.get_filings(form=4).latest(5)
 files = [ f.obj()  for f in f4s]
-print(files)
 
 def get_company_financials(ticker: str):
   # Use your name and email (required by SEC)
   company = Company(str(ticker))
-  print(company)
-  print(company.industry)
+  #print(company)
+  #print(company.industry)
   financials = company.get_financials()
 
   # The three financial statements
@@ -41,17 +40,17 @@ def get_company_financials(ticker: str):
 # print(filings)
 
 
-def latest_filing_html(ticker: str, form: str = "10-K") -> str:
-  company = Company(ticker)
-  latest = company.get_filings(form=form).latest(1)
+def latest_filing_html(ticker: str, form: str = "10-K") -> str | None:
+  company = Company(ticker.upper())
+  latest = company.get_filings(form=str(form).upper()).latest()
   if latest is not None:
     return latest.html()
 
 def filing_links(ticker: str, forms: [str], last_n: int = 3) -> [str]:
-  company = Company(ticker)
+  company = Company(ticker.upper())
   urls = []
   for form in forms:
-    filings = company.get_filings(form=form).latest(last_n)
+    filings = company.get_filings(form=str(form).upper()).latest(last_n)
 
     if filings is None:
       continue
