@@ -8,7 +8,7 @@ from alembic import context
 from app.db import Base, _get_db_url
 
 # Import all models so Base.metadata is populated for autogenerate
-from app.models.company import Company
+from app.models import Company
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

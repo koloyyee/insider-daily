@@ -12,24 +12,29 @@ from datastar_py.fastapi import (
     ReadSignals,
     ServerSentEventGenerator,
 )
+
+from app.services import latest_form4
 from .sec_edgar import latest_filing_html, filing_links
-from .ui import header, root_body
+from .ui import header, main_body, form4_row
 
 app = FastAPI()
 
-app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
+app.mount(
+    "/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static"
+)
 
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    # return HTMLResponse(HTML.replace("CURRENT_TIME", f"{datetime.isoformat(datetime.now())}"))
-    return HTMLResponse(header(root_body().replace("CURRENT_TIME", f"{datetime.isoformat(datetime.now())}")))
+    # return HTMLResponse(header(root_body().replace("CURRENT_TIME", f"{datetime.isoformat(datetime.now())}")))
+    return HTMLResponse(header(main_body()))
 
 
 @app.get("/show-msg", response_class=StreamingResponse)
 async def show_msg():
     return DatastarResponse(
-             ServerSentEventGenerator.patch_elements("<p id='msg'> Dafuq? </p>"))
+        ServerSentEventGenerator.patch_elements("<p id='msg'> Dafuq? </p>")
+    )
 
 
 async def time_updates():
@@ -47,8 +52,34 @@ async def time_updates():
 @app.get("/updates", response_class=StreamingResponse)
 async def updates(signals: ReadSignals):
     # ReadSignals is a dependency that automatically loads the signals from the request
-    #print(signals)
+    # print(signals)
     return DatastarResponse(time_updates())
+
+
+@app.get("/form4", response_class=HTMLResponse)
+async def list_latest_form4():
+    f4s = await latest_form4()
+    rows = "".join([form4_row(f4) for f4 in f4s])
+    return HTMLResponse(f"""\
+<div id="form4_feed" class="space-y-1">
+  {rows}
+</div>
+""")
+
+
+@app.get("/company/{ticker}", response_class=HTMLResponse)
+async def company_detail(ticker: str):
+    """Show the latest Form 4 filing HTML for a company."""
+    html = latest_filing_html(ticker, "4")
+    if html is None:
+        return HTMLResponse(header(f"<p class='text-gray-500 mt-8'>No Form 4 filings found for {ticker}.</p>"))
+    return HTMLResponse(header(f"""\
+<h1 class='font-bold text-2xl mb-4'>{ticker.upper()} — Latest Form 4</h1>
+<div class="max-w-full overflow-auto border border-gray-200 rounded-lg p-2">
+  {html}
+</div>
+<p class="mt-4"><a href="/" class="text-blue-500 hover:text-blue-700 underline">&larr; Back to feed</a></p>
+"""))
 
 
 @app.get("/latest/{ticker}/{form}", response_class=HTMLResponse)
@@ -61,15 +92,20 @@ async def latest_filing(ticker: str, form: str):
 
 @app.get("/{ticker}/{forms}/")
 async def latest_10ks(ticker: str, forms: str = "10-K", latest: int = 3):
-    forms = forms.split(",")
-    filings = filing_links(ticker, forms=forms, last_n=latest)
-    url_trs = "\n".join([f"""\
+    _forms = forms.split(",")
+    filings = filing_links(ticker, forms=_forms, last_n=latest)
+    url_trs = "\n".join(
+        [
+            f"""\
         <tr> 
             <td> <a href='{f["url"]}' target="_blank">{f["primary_doc"]} </a> </td> 
             <td> {f["filing_date"]:%Y-%m-%d}</td> 
         </tr>
         
-        """ for f in filings])
+        """
+            for f in filings
+        ]
+    )
     body = f"""\
         <table>
             <thead>

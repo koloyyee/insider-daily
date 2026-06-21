@@ -10431,5 +10431,5 @@ class Ticker(Enum):
 	
 
 	def __str__(self) -> str:
-		return str(self.name.replace("_", "-"))
+		return self.name.replace("_", "-")
 	
