@@ -6,8 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from edgar import Filing
 
-FORM4_RSS = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=4&company=&dateb=&owner=only&start=0&count=200&output=atom"
-feedparser.USER_AGENT = "dko@gmail.com"
+
 
 # Simple in-memory cache: {cache_key: (timestamp, data)}
 _cache: dict[str, tuple[float, list[dict]]] = {}
@@ -61,33 +60,35 @@ def _fetch_one(entry) -> dict | None:
         return None
 
 
-async def latest_form4(n: int = 30) -> list[dict]:
+async def stream_form4(n: int = 30):
+    """Async generator yielding (result_dict) as each filing arrives, and None for cache-hit shortcut."""
+    FORM4_RSS = f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=4&company=&dateb=&owner=only&start=0&count={n * 2}&output=atom"
+    feedparser.USER_AGENT = "dko@gmail.com"
     now = time.time()
 
     # Check cache
     cached = _cache.get("latest_form4")
     if cached and (now - cached[0]) < CACHE_TTL_SECONDS:
-        return cached[1][:n]
+        yield None  # signal: use cache
+        for item in cached[1][:n]:
+            yield item
+        return
 
     # Fetch RSS (blocking I/O — offload to thread)
     loop = asyncio.get_running_loop()
     feed = await loop.run_in_executor(None, lambda: feedparser.parse(FORM4_RSS))
-    filtered = [entry for entry in feed.entries if "Reporting" not in entry.title][:n]
+    filtered = [entry for entry in feed.entries if "Reporting" not in entry.title]
 
-    # Fetch filings in parallel via thread pool
+    # Fetch filings in parallel, yield as each completes
     summaries = []
     with ThreadPoolExecutor(max_workers=10) as pool:
-        # Submit all tasks, then await each result
         futures = [loop.run_in_executor(pool, _fetch_one, entry) for entry in filtered]
         for coro in asyncio.as_completed(futures):
             result = await coro
             if result is not None:
                 summaries.append(result)
+                yield result
 
-    # Sort by date descending (most recent first)
+    # Sort for cache (next load will be instant)
     summaries.sort(key=lambda s: s["transaction_summary"].reporting_date, reverse=True)
-
-    # Update cache
     _cache["latest_form4"] = (now, summaries)
-
-    return summaries

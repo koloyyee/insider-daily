@@ -34,9 +34,11 @@ def main_body():
           class="my-8"
           data-init="@get('/form4')"
         >
-          <div id="form4_feed">
-            <p class="text-gray-400">Loading...</p>
+          <div id="form4_feed"
+          data-indicator:fetching
+          >
           </div>
+          <div data-show="$fetching">Loading...</div>
         </div>
       </main>
     """

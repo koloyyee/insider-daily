@@ -7,13 +7,14 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from datastar_py.consts import ElementPatchMode
 from datastar_py.fastapi import (
     DatastarResponse,
     ReadSignals,
     ServerSentEventGenerator,
 )
 
-from app.services import latest_form4
+from app.services import stream_form4
 from .sec_edgar import latest_filing_html, filing_links
 from .ui import header, main_body, form4_row
 
@@ -56,15 +57,22 @@ async def updates(signals: ReadSignals):
     return DatastarResponse(time_updates())
 
 
-@app.get("/form4", response_class=HTMLResponse)
+@app.get("/form4", response_class=StreamingResponse)
 async def list_latest_form4():
-    f4s = await latest_form4()
-    rows = "".join([form4_row(f4) for f4 in f4s])
-    return HTMLResponse(f"""\
-<div id="form4_feed" class="space-y-1">
-  {rows}
-</div>
-""")
+    return DatastarResponse(_stream_form4_rows())
+
+
+async def _stream_form4_rows():
+    """Yields Datastar SSE patches — one row per filing as they arrive."""
+    async for item in stream_form4():
+        if item is None:
+            # Cache hit — instant replay from cache, just as fast
+            continue
+        yield ServerSentEventGenerator.patch_elements(
+            form4_row(item),
+            selector="#form4_feed",
+            mode=ElementPatchMode.APPEND,
+        )
 
 
 @app.get("/company/{ticker}", response_class=HTMLResponse)
@@ -72,14 +80,20 @@ async def company_detail(ticker: str):
     """Show the latest Form 4 filing HTML for a company."""
     html = latest_filing_html(ticker, "4")
     if html is None:
-        return HTMLResponse(header(f"<p class='text-gray-500 mt-8'>No Form 4 filings found for {ticker}.</p>"))
-    return HTMLResponse(header(f"""\
+        return HTMLResponse(
+            header(
+                f"<p class='text-gray-500 mt-8'>No Form 4 filings found for {ticker}.</p>"
+            )
+        )
+    return HTMLResponse(
+        header(f"""\
 <h1 class='font-bold text-2xl mb-4'>{ticker.upper()} — Latest Form 4</h1>
 <div class="max-w-full overflow-auto border border-gray-200 rounded-lg p-2">
   {html}
 </div>
 <p class="mt-4"><a href="/" class="text-blue-500 hover:text-blue-700 underline">&larr; Back to feed</a></p>
-"""))
+""")
+    )
 
 
 @app.get("/latest/{ticker}/{form}", response_class=HTMLResponse)
