@@ -16,3 +16,12 @@ fast-dev:
 
 claude:
 	claude --resume b0138809-de3f-43a7-8d49-32c038a6758c
+
+revision:
+	uv run alembic revision --autogenerate -m "$(m)"
+
+migrate:
+	uv run alembic upgrade head
+
+rollback:
+	uv run alembic downgrade -1

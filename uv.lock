@@ -79,6 +79,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/9f/64/2e54428beba8d9992aa478bb8f6de9e4ecaa5f8f513bcfd567ed7fb0262d/apscheduler-3.11.2-py3-none-any.whl", hash = "sha256:ce005177f741409db4e4dd40a7431b76feb856b9dd69d57e0da49d6715bfd26d", size = 64439, upload-time = "2025-12-22T00:39:33.303Z" },
 ]
 
+[package.optional-dependencies]
+sqlalchemy = [
+    { name = "sqlalchemy" },
+]
+
 [[package]]
 name = "asyncpg"
 version = "0.31.0"
@@ -481,6 +486,19 @@ wheels = [
 ]
 
 [[package]]
+name = "htpy"
+version = "26.5.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "markupsafe" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d3/18/48b0fe5f7b23c8bb0b45b09c306f511417fee74afc49a0765178d6dcbac2/htpy-26.5.1.tar.gz", hash = "sha256:43a365c1fc670094da781b923883019339cec031397d61d5fe5f8e2f2278b63e", size = 292049, upload-time = "2026-05-22T08:31:31.387Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/68/ad12d6519ccc48852ebb1effbe5a160ff21d7b48c484d0dae6fd173f6d22/htpy-26.5.1-py3-none-any.whl", hash = "sha256:148566db9d720c897baa5832e2a496954ce317ab06ef49a103b44f8a15322c3b", size = 21428, upload-time = "2026-05-22T08:31:30.153Z" },
+]
+
+[[package]]
 name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -585,7 +603,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
-    { name = "apscheduler" },
+    { name = "apscheduler", extra = ["sqlalchemy"] },
     { name = "asyncpg" },
     { name = "datastar-py" },
     { name = "edgartools" },
@@ -593,6 +611,7 @@ dependencies = [
     { name = "fastscheduler", extra = ["all"] },
     { name = "feedparser" },
     { name = "gunicorn" },
+    { name = "htpy" },
     { name = "httpx" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pytest" },
@@ -608,7 +627,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.18.4" },
-    { name = "apscheduler", specifier = ">=3.11.2" },
+    { name = "apscheduler", extras = ["asyncpg", "psycopg", "sqlalchemy"], specifier = ">=3.11.2" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "datastar-py", specifier = ">=0.8.0" },
     { name = "edgartools", specifier = ">=5.27.0" },
@@ -616,6 +635,7 @@ requires-dist = [
     { name = "fastscheduler", extras = ["all"], specifier = ">=0.2.1" },
     { name = "feedparser", specifier = ">=6.0.12" },
     { name = "gunicorn", specifier = ">=23.0.0" },
+    { name = "htpy", specifier = ">=26.5.1" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.0" },
     { name = "pytest", specifier = ">=9.0.2" },

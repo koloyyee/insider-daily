@@ -44,19 +44,18 @@ def main_body():
     """
 
 
-def form4_row(item: dict[str, Any]) -> str:
+def form4_row(item) -> str:
     """Render a single Form 4 filing as a feed row."""
-    ts = item["transaction_summary"]
-    ticker = ts.issuer_ticker or "?"
-    company = ts.issuer_name
-    insider = ts.insider_name
-    date = ts.reporting_date
-    filing_url = item["filing_url"]
+    ticker = item.issuer_ticker or "?"
+    company = item.issuer_name
+    insider = item.insider_name
+    date = item.reporting_date
+    filing_url = item.filing_url
 
     # Compute net shares and total value from transactions
     net_shares = 0
     total_value = 0.0
-    for t in ts.transactions:
+    for t in item.transactions:
         if t.transaction_type in ("purchase", "award"):
             net_shares += t.shares
         elif t.transaction_type in ("sale",):

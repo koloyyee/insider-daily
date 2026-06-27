@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -13,12 +14,23 @@ from datastar_py.fastapi import (
     ReadSignals,
     ServerSentEventGenerator,
 )
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from app.services import stream_form4
+from app.services import fetch_and_store_f4, stream_form4
 from .sec_edgar import latest_filing_html, filing_links
 from .ui import header, main_body, form4_row
 
-app = FastAPI()
+# Scheduled fetching
+scheduler = AsyncIOScheduler()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.add_job(fetch_and_store_f4, "interval", minutes=5, args=[30])
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+app = FastAPI(lifespan = lifespan)
 
 app.mount(
     "/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static"
@@ -64,7 +76,7 @@ async def list_latest_form4():
 
 async def _stream_form4_rows():
     """Yields Datastar SSE patches — one row per filing as they arrive."""
-    async for item in stream_form4():
+    async for item in stream_form4(n= 100):
         if item is None:
             # Cache hit — instant replay from cache, just as fast
             continue
