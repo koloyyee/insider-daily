@@ -1,4 +1,5 @@
 import asyncio
+from datetime import date
 from os import access
 import feedparser
 import re
@@ -62,7 +63,7 @@ def _fetch_one(entry) -> dict | None:
         url = filing_url[:last_slash_idx] + "/" + xml_display_format + filing_url[last_slash_idx:]
 
         return {
-            "transaction_summary": f4.get_ownership_summary(),
+            "transaction_summary": f4.get_ownership_summary(), # type: ignore
             "filing_url": url,
             "accession_no": comp_entry["acc_no"],
             "cik": comp_entry["cik"],
@@ -147,12 +148,13 @@ async def fetch_and_store_f4(n : int = 30):
                     insider = Insider_Model(name = ts.insider_name)
                     session.add(insider)
                     await session.flush()
+
                 filing = Filing_Model(
                     accession_no = accession_no,
                     ticker = ticker.upper(),
                     insider_id = insider.id,
-                    filing_date = ts.reporting_date,
-                    filing_url = item["filing_url"] # FIX: something feels off
+                    filing_date = date.fromisoformat(ts.reporting_date) if isinstance(ts.reporting_date, str) else ts.reporting_date,
+                    filing_url = item["filing_url"] 
                 )
                 session.add(filing)
                 await session.flush()

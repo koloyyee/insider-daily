@@ -39,12 +39,6 @@ if __name__ == "__main__":
 
 	asyncio.run(_test())
 
-#def create_db_and_tables():
-#	Base.metadata.create_all(engine)
-
-
-#SessionDep = Annotated[Session, Depends(get_session)]
-
 	
 	
 	

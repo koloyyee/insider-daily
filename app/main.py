@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
+from htpy.starlette import HtpyResponse
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -18,7 +19,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.services import fetch_and_store_f4, stream_form4
 from .sec_edgar import latest_filing_html, filing_links
-from .ui import header, main_body, form4_row
+from .ui import header, main_body, form4_row, root
 
 # Scheduled fetching
 scheduler = AsyncIOScheduler()
@@ -40,7 +41,7 @@ app.mount(
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     # return HTMLResponse(header(root_body().replace("CURRENT_TIME", f"{datetime.isoformat(datetime.now())}")))
-    return HTMLResponse(header(main_body()))
+    return HtpyResponse(root(main_body()))
 
 
 @app.get("/show-msg", response_class=StreamingResponse)

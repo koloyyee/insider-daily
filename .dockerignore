@@ -12,6 +12,8 @@
 **/.env
 **/.git
 **/.gitignore
+**/.mypy_cache
+**/.pytest_cache
 **/.project
 **/.settings
 **/.toolstarget
@@ -32,3 +34,5 @@
 **/values.dev.yaml
 LICENSE
 README.md
+notebooks/
+db/password.txt

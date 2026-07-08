@@ -1,5 +1,42 @@
 from typing import Any
 
+from htpy import (
+    Element,
+    a,
+    div,
+    h1,
+    head,
+    html,
+    link,
+    main,
+    meta,
+    p,
+    script,
+    body,
+    span,
+    title,
+)
+
+
+def root(el: Element):
+    return html(lang="en")[
+        head[
+            meta(charset="UTF-8"),
+            meta(name="viewport", content="width=device-width, initial-scale=1.0"),
+            script(
+                {"type": "module"},
+                src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-RC.7/bundles/datastar.js",
+            ),
+            link(href="/static/output.css", rel="stylesheet"),
+            title["Insider Daily"],
+            body(class_="text-gray-500")[
+                div(
+                    class_="mt-8 max-w-6xl mx-auto border border-gray-200 rounded-lg p-4 sm:p-6 min-h-screen"
+                )[el]
+            ],
+        ]
+    ]
+
 
 def header(body: str) -> str:
     return f"""\
@@ -22,40 +59,29 @@ def header(body: str) -> str:
     """
 
 
-def main_body():
-    """
-    The index page of the application, listing latest Form 4.
-    """
-    return """\
-      <h1 class='font-bold text-3xl underline underline-offset-8'> Latest Insider Filings </h1>
-
-      <main class="mx-auto w-full max-w-5xl">
-        <div
-          class="my-8"
-          data-init="@get('/form4')"
-        >
-          <div id="form4_feed"
-          data-indicator:fetching
-          >
-          </div>
-          <div data-show="$fetching">Loading...</div>
-        </div>
-      </main>
-    """
+def main_body() -> Element:
+    return main(class_="mx-auto w-full max-w-5xl")[
+        h1(class_="font-bold text-3xl underline underline-offset-8")["Insider Filings"],
+        div({"data-init": "@get('/form4')"}, class_="my-8")[
+            div({"data-indicator:fetching": True}, id="form4_feed"),
+            div({"data-show": "$fetching"})["Loading..."],
+        ],
+    ]
 
 
-def form4_row(item) -> str:
+def form4_row(item) -> Element:
     """Render a single Form 4 filing as a feed row."""
-    ticker = item.issuer_ticker or "?"
-    company = item.issuer_name
-    insider = item.insider_name
-    date = item.reporting_date
-    filing_url = item.filing_url
+    ts = item["transaction_summary"]
+    ticker = ts.issuer_ticker or "?"
+    company = ts.issuer_name
+    insider = ts.insider_name
+    date = ts.reporting_date
+    filing_url = item["filing_url"]
 
     # Compute net shares and total value from transactions
     net_shares = 0
     total_value = 0.0
-    for t in item.transactions:
+    for t in ts.transactions:
         if t.transaction_type in ("purchase", "award"):
             net_shares += t.shares
         elif t.transaction_type in ("sale",):
@@ -77,25 +103,24 @@ def form4_row(item) -> str:
     shares_display = f"{abs(net_shares):,}"
     value_display = f"${total_value:,.0f}" if total_value > 0 else "—"
 
-    return f"""\
-    <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 items-center border-b border-gray-100 py-3 px-2 hover:bg-blue-50 rounded transition">
-      <div class="min-w-0">
-        <a href="/company/{ticker}" class="font-semibold text-gray-900 hover:text-blue-600">{company}</a>
-        <div class="text-xs text-gray-400 truncate">{insider}</div>
-      </div>
-      <span class="inline-block {action_color} text-xs font-semibold px-2 py-1 rounded whitespace-nowrap">{action} {shares_display}</span>
-      <span class="text-sm text-gray-500 tabular-nums">{value_display}</span>
-      <span class="text-sm text-gray-400">{date}</span>
-      <a href="{filing_url}" target="_blank" class="text-xs text-blue-500 hover:text-blue-700 underline whitespace-nowrap">SEC</a>
-    </div>
-    """
-
-
-def gen_list_items(id: str, items: list[Any], style: str = ""):
-    lis = "".join([f"<li>{item}</li>" for item in items])
-
-    return f"""
-    <ul id="{id}" class="{style}">
-      {lis}
-    </ul>
-    """
+    return div(
+        class_="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 items-center border-b border-gray-100 py-3 px-2 hover:bg-blue-50 rounded transition"
+    )[
+        div(class_="min-w-0")[
+            a(
+                class_="font-semibold text-gray-900 hover:text-blue-600",
+                href=f"/company/{ticker}",
+            )[company],
+            div(class_="text-xs text-gray-400 truncate")[insider],
+        ],
+        span(
+            class_=f"inline-block {action_color} text-xs font-semibold px-2 py-1 rounded whitespace-nowrap"
+        )[action, shares_display],
+        span(class_="text-sm text-gray-500 tabular-nums")[value_display],
+        span(class_="text-sm text-gray-400")[date],
+        a(
+            class_="text-xs text-blue-500 hover:text-blue-700 underline whitespace-nowrap",
+            target="_blank",
+            href=f"{filing_url}",
+        )["SEC"],
+    ]

@@ -12,3 +12,13 @@ wheels/
 */password.txt
 
 node_modules/
+
+# IDE
+.DS_Store
+
+# Type checking
+.mypy_cache/
+.pytest_cache/
+
+# Notebooks (experimental — can remove if you want them tracked)
+notebooks/
