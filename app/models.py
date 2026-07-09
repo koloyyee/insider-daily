@@ -36,6 +36,9 @@ class Filing(Base):
 	filing_url: Mapped[str] = mapped_column(String(500))
 	transactions: Mapped[list["Transaction"]] = relationship(back_populates="filing")
 
+	company: Mapped["Company"] = relationship()
+	insider: Mapped["Insider | None"] = relationship()
+
 class Transaction(Base):
 	__tablename__ = "transactions"
 

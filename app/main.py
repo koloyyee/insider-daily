@@ -17,7 +17,7 @@ from datastar_py.fastapi import (
 )
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from app.services import fetch_and_store_f4, stream_form4
+from app.services import fetch_and_store_f4, stream_form4, retrieve_form4
 from .sec_edgar import latest_filing_html, filing_links
 from .ui import header, main_body, form4_row, root
 
@@ -26,8 +26,9 @@ scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler.add_job(fetch_and_store_f4, "interval", minutes=5, args=[30])
+    scheduler.add_job(fetch_and_store_f4, "interval", minutes=5, args=[100])
     scheduler.start()
+    await fetch_and_store_f4(100)
     yield
     scheduler.shutdown()
 
@@ -40,34 +41,8 @@ app.mount(
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    # return HTMLResponse(header(root_body().replace("CURRENT_TIME", f"{datetime.isoformat(datetime.now())}")))
     return HtpyResponse(root(main_body()))
 
-
-@app.get("/show-msg", response_class=StreamingResponse)
-async def show_msg():
-    return DatastarResponse(
-        ServerSentEventGenerator.patch_elements("<p id='msg'> Dafuq? </p>")
-    )
-
-
-async def time_updates():
-    while True:
-        yield ServerSentEventGenerator.patch_elements(
-            f"""<span id="currentTime">{datetime.now().isoformat()}"""
-        )
-        await asyncio.sleep(1)
-        yield ServerSentEventGenerator.patch_signals(
-            {"currentTime": f"{datetime.now().isoformat()}"}
-        )
-        await asyncio.sleep(1)
-
-
-@app.get("/updates", response_class=StreamingResponse)
-async def updates(signals: ReadSignals):
-    # ReadSignals is a dependency that automatically loads the signals from the request
-    # print(signals)
-    return DatastarResponse(time_updates())
 
 
 @app.get("/form4", response_class=StreamingResponse)
@@ -77,7 +52,9 @@ async def list_latest_form4():
 
 async def _stream_form4_rows():
     """Yields Datastar SSE patches — one row per filing as they arrive."""
-    async for item in stream_form4(n= 100):
+    rows = await retrieve_form4(n = 100)
+    for item in rows:
+    #async for item in stream_form4(n= 10):
         if item is None:
             # Cache hit — instant replay from cache, just as fast
             continue

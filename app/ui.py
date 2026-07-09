@@ -71,23 +71,13 @@ def main_body() -> Element:
 
 def form4_row(item) -> Element:
     """Render a single Form 4 filing as a feed row."""
-    ts = item["transaction_summary"]
-    ticker = ts.issuer_ticker or "?"
-    company = ts.issuer_name
-    insider = ts.insider_name
-    date = ts.reporting_date
+    ticker = item["ticker"]
+    company = item["company_name"]
+    insider = item["insider_name"]
+    date = item["filing_date"]
     filing_url = item["filing_url"]
-
-    # Compute net shares and total value from transactions
-    net_shares = 0
-    total_value = 0.0
-    for t in ts.transactions:
-        if t.transaction_type in ("purchase", "award"):
-            net_shares += t.shares
-        elif t.transaction_type in ("sale",):
-            net_shares -= t.shares
-        if t.value:
-            total_value += t.value
+    net_shares = item["net_shares"]
+    total_value = item["total_value"]
 
     # Determine action label and color
     if net_shares > 0:
@@ -115,7 +105,7 @@ def form4_row(item) -> Element:
         ],
         span(
             class_=f"inline-block {action_color} text-xs font-semibold px-2 py-1 rounded whitespace-nowrap"
-        )[action, shares_display],
+        )[action, " ", shares_display],
         span(class_="text-sm text-gray-500 tabular-nums")[value_display],
         span(class_="text-sm text-gray-400")[date],
         a(

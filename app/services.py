@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import date
 from os import access
 import feedparser
@@ -7,13 +8,16 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from edgar import Filing
+
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from app.db import AsyncSessionLocal
 from app.models import Company as Company_Model, Insider as Insider_Model, Filing as Filing_Model, Transaction as Transaction_Model
  
 
 
+logger = logging.getLogger(__name__)
 
 # Simple in-memory cache: {cache_key: (timestamp, data)}
 _cache: dict[str, tuple[float, list[dict]]] = {}
@@ -67,11 +71,54 @@ def _fetch_one(entry) -> dict | None:
             "filing_url": url,
             "accession_no": comp_entry["acc_no"],
             "cik": comp_entry["cik"],
-            "title": comp_entry["title"]
+            "title": comp_entry["title"],
+            "filing_date": comp_entry["date"],
         }
-    except Exception:
+    except Exception as e:
+        logger.warning("_fetch_one failed for %s: %s", getattr(entry, "title", "?"), e)
         return None
 
+async def retrieve_form4(n: int =20) -> list[dict]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(Filing_Model)
+            .options(
+                joinedload(Filing_Model.company),
+                joinedload(Filing_Model.insider),
+                joinedload(Filing_Model.transactions),
+            )
+            .order_by(Filing_Model.filing_date.desc())
+            .limit(n)
+        )
+        filings = result.unique().scalars().all()
+    rows = []
+    for f in filings:
+        transactions = []
+        net_shares = 0
+        total_value = 0
+        for t in f.transactions:
+            transactions.append({
+                "transaction_type" : t.transaction_type,
+                "shares": t.shares,
+                "value": t.value,
+                "price_per_share": t.price_per_share
+            })
+            if t.transaction_type in ("purchase", "award"):
+                net_shares += t.shares
+            elif t.transaction_type in ("sale"):
+                net_shares -= t.shares
+            if t.value:
+                total_value += t.value
+        rows.append({
+            "ticker": f.ticker or "?",
+            "company_name" : f.company.title if f.company else f.ticker,
+            "insider_name" : f.insider.name if f.insider else "Unknown",
+            "filing_date" : str(f.filing_date),
+            "filing_url": f.filing_url,
+            "net_shares": net_shares,
+            "total_value": total_value
+        })
+    return rows
 
 async def stream_form4(n: int = 20):
     """Async generator yielding (result_dict) as each filing arrives, and None for cache-hit shortcut."""
@@ -148,26 +195,35 @@ async def fetch_and_store_f4(n : int = 30):
                     insider = Insider_Model(name = ts.insider_name)
                     session.add(insider)
                     await session.flush()
-
                 filing = Filing_Model(
                     accession_no = accession_no,
                     ticker = ticker.upper(),
                     insider_id = insider.id,
-                    filing_date = date.fromisoformat(ts.reporting_date) if isinstance(ts.reporting_date, str) else ts.reporting_date,
-                    filing_url = item["filing_url"] 
+                    filing_date = date.fromisoformat(item["filing_date"]),
+                    filing_url = item["filing_url"]
                 )
                 session.add(filing)
                 await session.flush()
 
                 for t in ts.transactions:
+                    def _to_float(v):
+                        if v is None or isinstance(v, (int, float)):
+                            return v
+                        cleaned = v.replace(",", "")
+                        try:
+                            return float(cleaned)
+                        except ValueError:
+                            return None
+                    pps = _to_float(t.price_per_share)
+                    val = _to_float(t.value)
                     session.add(Transaction_Model(
                         filing_id = accession_no,
                         transaction_type = t.transaction_type,
                         shares = t.shares,
-                        value = t.value,
-                        price_per_share = t.price_per_share
+                        value = val,
+                        price_per_share = pps
                     ))
                 stored += 1
             await session.commit()
-        print(f"fetch_and_store_f4: stored {stored} new filings") # FIX: replace with logging
+        logger.info("fetch_and_store_f4: stored %s new filings", stored)
         return stored
